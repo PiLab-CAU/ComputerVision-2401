@@ -88,8 +88,90 @@ def get_normalized_image_gray(image):
     return 255*n_img
 
 
-def get_edge(DoG_image):
+def get_edge(filtered_image):
     '''
     Thresholding DoG Image so as to get final edges
     '''
-    return DoG_image
+    return filtered_image
+
+
+
+
+def non_maximal_suppression(gradient_mag, gradient_angle, thres=1.0):
+    M, N = gradient_mag.shape
+    #grad_max = np.max(gradient_mag[1:M-1, 1:N-1])
+    grad_max = np.max(gradient_mag)
+    gradient_mag =  (gradient_mag / grad_max )*255.0
+    
+    image_ret = np.zeros((M,N), dtype=np.float64) # resultant image
+    angle = gradient_angle * 180. / np.pi        # max -> 180, min -> -180
+    angle[angle < 0] += 180             # max -> 180, min -> 0
+
+    for i in range(1,M-1):
+        for j in range(1,N-1):
+            q = 255*thres
+            r = 255*thres
+        
+            if (0 <= angle[i,j] < 22.5) or (157.5 <= angle[i,j] <= 180):
+                r = gradient_mag[i, j-1]
+                q = gradient_mag[i, j+1]
+
+            elif (22.5 <= angle[i,j] < 67.5):
+                r = gradient_mag[i-1, j+1]
+                q = gradient_mag[i+1, j-1]
+
+            elif (67.5 <= angle[i,j] < 112.5):
+                r = gradient_mag[i-1, j]
+                q = gradient_mag[i+1, j]
+
+            elif (112.5 <= angle[i,j] < 157.5):
+                r = gradient_mag[i+1, j+1]
+                q = gradient_mag[i-1, j-1]
+
+            if (gradient_mag[i,j] >= q) and (gradient_mag[i,j] >= r):
+                image_ret[i,j] = gradient_mag[i,j]
+            else:
+                image_ret[i,j] = 0
+    return image_ret
+
+def threshold(img, lowThresholdRatio=0.05, highThresholdRatio=0.09):
+    '''
+    Double threshold
+    '''
+    
+    highThreshold = img.max() * highThresholdRatio;
+    lowThreshold = highThreshold * lowThresholdRatio;
+    
+    M, N = img.shape
+    res = np.zeros((M,N), dtype=np.int32)
+    
+    weak = np.int32(25)
+    strong = np.int32(255)
+    
+    strong_i, strong_j = np.where(img >= highThreshold)
+    zeros_i, zeros_j = np.where(img < lowThreshold)
+    
+    weak_i, weak_j = np.where((img <= highThreshold) & (img >= lowThreshold))
+    
+    res[strong_i, strong_j] = strong
+    res[weak_i, weak_j] = weak
+    
+    return (res, weak, strong)
+
+
+def hysteresis(img, weak, strong=255):
+    M, N = img.shape
+
+    for i in range(1, M-1):
+        for j in range(1, N-1):
+            if (img[i, j] == weak):
+                if (
+                    (img[i+1, j-1] == strong) or (img[i+1, j] == strong) or
+                    (img[i+1, j+1] == strong) or (img[i, j-1] == strong) or
+                    (img[i, j+1] == strong) or (img[i-1, j-1] == strong) or
+                    (img[i-1, j] == strong) or (img[i-1, j+1] == strong)
+                ):
+                    img[i, j] = strong
+                else:
+                    img[i, j] = 0
+    return img
