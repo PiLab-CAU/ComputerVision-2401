@@ -33,9 +33,9 @@ h_x = (1/8)*np.array([[-1.0, 0.0, 1.0],
                       [-2.0, 0.0, 2.0],
                       [-1.0, 0.0, 1.0]])
 
-h_y = (1/8)*np.array([[-1.0, -2.0, -1.0],
+h_y = (1/8)*np.array([[1.0, 2.0, 1.0],
                       [0.0, 0.0, 0.0],
-                      [1.0, 2.0, 1.0]])
+                      [-1.0, -2.0, -1.0]]) 
 
 lenna_grad_x = cv2.filter2D(lenna_gaussian, -1, h_x, borderType=cv2.BORDER_CONSTANT)
 lenna_grad_y = cv2.filter2D(lenna_gaussian, -1, h_y, borderType=cv2.BORDER_CONSTANT)
