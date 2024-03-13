@@ -88,16 +88,9 @@ def get_normalized_image_gray(image):
     return 255*n_img
 
 
-def get_edge(filtered_image):
-    '''
-    Thresholding DoG Image so as to get final edges
-    '''
-    return filtered_image
 
 
-
-
-def non_maximal_suppression(gradient_mag, gradient_angle, thres=1.0):
+def non_maximal_suppression(gradient_mag, gradient_angle):
     M, N = gradient_mag.shape
     #grad_max = np.max(gradient_mag[1:M-1, 1:N-1])
     grad_max = np.max(gradient_mag)
@@ -109,8 +102,8 @@ def non_maximal_suppression(gradient_mag, gradient_angle, thres=1.0):
 
     for i in range(1,M-1):
         for j in range(1,N-1):
-            q = 255*thres
-            r = 255*thres
+            q = 255.0
+            r = 255.0
         
             if (0 <= angle[i,j] < 22.5) or (157.5 <= angle[i,j] <= 180):
                 r = gradient_mag[i, j-1]
@@ -134,7 +127,7 @@ def non_maximal_suppression(gradient_mag, gradient_angle, thres=1.0):
                 image_ret[i,j] = 0
     return image_ret
 
-def threshold(img, lowThresholdRatio=0.05, highThresholdRatio=0.09):
+def threshold(img, lowThresholdRatio=0.05, highThresholdRatio=0.09, weak_default=25, strong_default=255):
     '''
     Double threshold
     '''
@@ -145,8 +138,8 @@ def threshold(img, lowThresholdRatio=0.05, highThresholdRatio=0.09):
     M, N = img.shape
     res = np.zeros((M,N), dtype=np.int32)
     
-    weak = np.int32(25)
-    strong = np.int32(255)
+    weak = np.int32(weak_default)
+    strong = np.int32(strong_default)
     
     strong_i, strong_j = np.where(img >= highThreshold)
     zeros_i, zeros_j = np.where(img < lowThreshold)

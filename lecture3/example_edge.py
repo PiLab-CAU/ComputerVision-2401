@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from utils import get_normalized_image_gray, get_edge, noise_suppression
+from utils import get_normalized_image_gray, noise_suppression
 from utils import non_maximal_suppression, threshold, hysteresis
 
 lenna_image_gray = cv2.imread('gray_lenna.png', cv2.IMREAD_GRAYSCALE).astype(np.float64)
@@ -12,7 +12,7 @@ blurred2_lenna = cv2.GaussianBlur(lenna_image_gray, (0, 0), sigmaX=2, sigmaY=2)
 DoG_lenna = blurred2_lenna - blurred1_lenna
 
 #save
-cv2.imwrite('lenna_DoG.png', get_normalized_image_gray(get_edge(DoG_lenna)))
+cv2.imwrite('lenna_DoG.png', get_normalized_image_gray(DoG_lenna))
 
 #laplacian
 h = (1/1)*np.array([[0.0, 1.0, 0.0],
@@ -21,12 +21,15 @@ h = (1/1)*np.array([[0.0, 1.0, 0.0],
 
 lenna_laplacian = cv2.filter2D(lenna_image_gray, -1, h, borderType=cv2.BORDER_CONSTANT)
 
-cv2.imwrite('lenna_Laplacian.png', get_normalized_image_gray(get_edge(lenna_laplacian)))
+cv2.imwrite('lenna_Laplacian.png', get_normalized_image_gray(lenna_laplacian))
 
 
 #let's implement canny edge detector
 #guassian filter for noise reduction
 lenna_gaussian = noise_suppression(lenna_image_gray, option='gaussian')
+
+#save
+cv2.imwrite('lenna_gaussian.png', lenna_gaussian)
 
 #Applying Sobel edge filters for calculating gradient
 h_x = (1/8)*np.array([[-1.0, 0.0, 1.0],
