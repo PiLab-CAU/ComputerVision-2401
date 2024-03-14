@@ -34,9 +34,9 @@ lenna_vis = vis_image(lenna_image_bgr, lenna_keypoint)
 cv2.imwrite('lenna_harris_corner.png', lenna_vis)
 
 #visualization for different thres
-points_1em5 = harris_corner_detector(lenna_image_bgr, threshold=1e-5)
-points_1em6 = harris_corner_detector(lenna_image_bgr, threshold=1e-6)
-points_1em7 = harris_corner_detector(lenna_image_bgr, threshold=1e-7)
+_, points_1em5 = harris_corner_detector(lenna_image_bgr, threshold=1e-5)
+_, points_1em6 = harris_corner_detector(lenna_image_bgr, threshold=1e-6)
+_, points_1em7 = harris_corner_detector(lenna_image_bgr, threshold=1e-7)
 
 cv2.imwrite('lenna_harris_corner_1e-5.png', vis_image(lenna_image_bgr, points_1em5))
 cv2.imwrite('lenna_harris_corner_1e-6.png', vis_image(lenna_image_bgr, points_1em6))
