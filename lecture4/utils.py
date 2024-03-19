@@ -277,7 +277,7 @@ def is_extrema(dog_images, octave, layer, i, j, threshold):
     if abs(pixel_value) < threshold:
         return False
     
-    # 주변 3x3x3 이웃보다 크거나 작은지 확인합니다.
+    # check local maxima at 3x3x3 neighbors
     for x in range(i-1, i+2):
         for y in range(j-1, j+2):
             if x < 0 or y < 0 or x >= dog_images[octave][layer].shape[0] or y >= dog_images[octave][layer].shape[1]:
@@ -287,8 +287,7 @@ def is_extrema(dog_images, octave, layer, i, j, threshold):
             if layer < len(dog_images[octave]) - 1 and dog_images[octave][layer+1][x, y] >= pixel_value:
                 return False
             if (x != i or y != j) and dog_images[octave][layer][x, y] >= pixel_value:
-                return False
-            
+                return False  
     return True
 
 
@@ -444,9 +443,7 @@ def calculate_descriptor(patch, num_bins=8, width=4, max_val=0.2, eps=1e-7):
     # 서브리전의 크기
     subregion_size = patch_size // width
     # 그래디언트 크기와 방향 계산
-    gx = calcululating_gradient_x(patch)
-    gy = calcululating_gradient_y(patch)
-    magnitude, orientation = cv2.cartToPolar(gx, gy, angleInDegrees=True)
+    magnitude, orientation = calculate_gradient_magnitude_and_orientation(patch)
 
     # 각 서브리전에 대해 반복
     for i in range(width):
@@ -544,22 +541,22 @@ def cell_histogram_HoG(magnitude, angle, bin_size=20):
 def compute_HoG_descriptor(image, cell_size=(8, 8), bin_size=20, block_size=(2, 2), eps=1e-7):
     magnitude, angle = calculate_gradient_magnitude_and_orientation(image)
     
-    # 셀 단위의 히스토그램 계산
+    # cell level histogram calculation
     cell_x = int(np.ceil(image.shape[1] / cell_size[1]))
     cell_y = int(np.ceil(image.shape[0] / cell_size[0]))
     bins = int(360 // bin_size)
-    HoG_descriptor = np.zeros((cell_y, cell_x, bins), dtype=np.float32)
+    HoG_descriptor = np.zeros((cell_y, cell_x, bin_size), dtype=np.float32)
 
     for i in range(cell_y):
         for j in range(cell_x):
             cell_magnitude = magnitude[i*cell_size[0]:(i+1)*cell_size[0], j*cell_size[1]:(j+1)*cell_size[1]]
             cell_angle = angle[i*cell_size[0]:(i+1)*cell_size[0], j*cell_size[1]:(j+1)*cell_size[1]]
-            hist = cell_histogram_HoG(cell_magnitude, cell_angle, bin_size)
+            hist = cell_histogram_HoG(cell_magnitude, cell_angle, bins)
             HoG_descriptor[i, j, :] = hist
 
-    # 블록 단위로 히스토그램 정규화
+    # block level histogram normalization
     blocks_y, blocks_x = cell_y - block_size[0] + 1, cell_x - block_size[1] + 1
-    normalized_blocks = np.zeros((blocks_y, blocks_x, block_size[1]*block_size[0]*bins), dtype=np.float32)
+    normalized_blocks = np.zeros((blocks_y, blocks_x, block_size[1]*block_size[0]*bin_size), dtype=np.float32)
 
     for y in range(blocks_y):
         for x in range(blocks_x):
@@ -570,7 +567,7 @@ def compute_HoG_descriptor(image, cell_size=(8, 8), bin_size=20, block_size=(2, 
 
     return normalized_blocks.flatten()
 
-def visualize_HoG(img, HoG_descriptor, cell_size=(8, 8), bin_size=20, scale_factor=2):
+def visualize_HoG(img, HoG_descriptor, cell_size=(8, 8), bin_size=20, block_size=(2, 2),scale_factor=2):
     img_HoG = img.copy()
     if len(img_HoG.shape) == 2:  # 그레이스케일 이미지라면 컬러로 변환
         img_HoG = cv2.cvtColor(img_HoG, cv2.COLOR_GRAY2BGR)
@@ -578,9 +575,9 @@ def visualize_HoG(img, HoG_descriptor, cell_size=(8, 8), bin_size=20, scale_fact
     num_cells_x = img.shape[1] // cell_size[1]
     num_cells_y = img.shape[0] // cell_size[0]
     max_len = cell_size[0] // 2
-    num_bins = 360 // bin_size
+    angle_bins = 360 // bin_size
 
-    HoG_descriptor = HoG_descriptor.reshape(num_cells_y-1, num_cells_x-1, num_bins*4)
+    HoG_descriptor = HoG_descriptor.reshape(num_cells_y-1, num_cells_x-1, bin_size*block_size[0]*block_size[1])
 
     for i in range(num_cells_y-1):
         for j in range(num_cells_x-1):
@@ -590,8 +587,8 @@ def visualize_HoG(img, HoG_descriptor, cell_size=(8, 8), bin_size=20, scale_fact
 
             center = (j * cell_size[1] + cell_size[1] // 2, i * cell_size[0] + cell_size[0] // 2)
             
-            for o in range(num_bins):
-                orientation = o * num_bins
+            for o in range(bin_size):
+                orientation = o * angle_bins
                 dx = int(np.cos(np.radians(orientation)) * cell_mag[o] * max_len * scale_factor)
                 dy = int(np.sin(np.radians(orientation)) * cell_mag[o] * max_len * scale_factor)
                 

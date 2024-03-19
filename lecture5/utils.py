@@ -791,3 +791,81 @@ def ransac_homography(src_pts, dst_pts, width, iterations=1000, threshold=5):
             
     return final_H, max_inliers
 
+def stitch(image_left, image_right):
+    height, width, channels = image_left.shape
+    rheight, rwidth, channels = image_right.shape
+
+    image_l_gray = cv2.cvtColor(image_left, cv2.COLOR_BGR2GRAY)
+    image_r_gray = cv2.cvtColor(image_right, cv2.COLOR_BGR2GRAY)
+
+    # SIFT 특징 검출기 생성
+    sift = cv2.SIFT_create()
+
+    # 각 이미지에서 SIFT 특징점과 디스크립터 추출
+    keypoints1, descriptors1 = sift.detectAndCompute(image_l_gray, None)
+    keypoints2, descriptors2 = sift.detectAndCompute(image_r_gray, None)
+
+    # BFMatcher 객체 생성
+    bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=False)
+
+    # 매칭 수행
+    matches = bf.knnMatch(descriptors1, descriptors2, k=2)
+
+    # 좋은 매칭 필터링 - Lowe's ratio test
+    good_matches = []
+    for m, n in matches:
+        if m.distance < 0.75 * n.distance:
+            good_matches.append(m)
+
+    # 매칭 결과 정렬 (거리 기준)
+    good_matches = sorted(good_matches, key=lambda x: x.distance)
+
+    # 호모그래피 계산을 위한 매칭된 특징점 좌표 추출
+    src_pts = np.float32([keypoints1[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+    dst_pts = np.float32([keypoints2[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+
+    dst_pts[:,0,0] += width
+
+    # RANSAC을 사용하여 호모그래피 매트릭스 계산
+    H, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+    print(H)
+
+    # 호모그래피를 사용하여 이미지 와핑
+    warped_image = cv2.warpPerspective(image_left, H, (width+rwidth, height))
+
+    warped_image[:, -rwidth:] = 0.5*warped_image[:, -rwidth:] + 0.5*image_right
+    #warped_image[:, -rwidth:] = image_right
+
+    return warped_image
+
+def cylindrical_projection(image, focal_length):
+    h, w = image.shape[:2]
+    cylinder_img = np.zeros_like(image, dtype=np.uint8)
+
+    # 이미지 중심점
+    cx, cy = w / 2, h / 2
+
+    for y in range(h):
+        for x in range(w):
+            # 이미지 평면에서의 좌표를 중심을 기준으로 재조정
+            x_shifted = x - cx
+            y_shifted = y - cy
+
+            # 원통 좌표계로 변환
+            theta = np.arctan(x_shifted / focal_length)
+            h_ = y_shifted / np.sqrt(x_shifted**2 + focal_length**2)
+            
+            # 원통 좌표계에서의 픽셀 위치 계산
+            x_cyl = focal_length * theta + cx
+            y_cyl = focal_length * h_ + cy
+
+            # 가장 가까운 픽셀 값으로 새 이미지에 할당
+            if 0 <= x_cyl < w and 0 <= y_cyl < h:
+                cylinder_img[int(y_cyl), int(x_cyl)] = image[y, x]
+
+    # 구멍 메우기를 위해 이미지를 dilate 한 후 원본 이미지와 비교하여 최소값 취함
+    kernel = np.ones((5, 5), np.uint8)
+    dilated_img = cv2.dilate(cylinder_img, kernel, iterations=1)
+    cylinder_img = np.where(cylinder_img == 0, dilated_img, cylinder_img)
+
+    return cylinder_img

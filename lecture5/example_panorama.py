@@ -3,7 +3,6 @@ import numpy as np
 from utils import extract_SIFT, match_descriptors, vis_match, ransac_homography, get_matched_point 
 from utils import compute_homography, cross_check
 
-noindent = True
 
 dataset_dir = 'dataset/CMU0'
 image_files = sorted(os.listdir(dataset_dir))
